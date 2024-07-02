@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pronóstico del tiempo y radar de lluvia para Monzón</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 10px;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            box-sizing: border-box;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+        h1 {
+            text-align: center;
+            color: #ffffff;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        .tab {
+            padding: 10px;
+            cursor: pointer;
+            background-color: #2c2c2c;
+            border: 1px solid #444;
+            border-bottom: none;
+            color: #e0e0e0;
+            flex-grow: 1;
+            text-align: center;
+        }
+        .tab.active {
+            background-color: #3a3a3a;
+            border-bottom: 1px solid #3a3a3a;
+        }
+        .content {
+            display: none;
+            border: 1px solid #444;
+            padding: 10px;
+            background-color: #2c2c2c;
+        }
+        .content.active {
+            display: block;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+        th, td {
+            border: 1px solid #444;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #3a3a3a;
+        }
+        tr:nth-child(even) {
+            background-color: #252525;
+        }
+        #map {
+            height: 300px;
+            width: 100%;
+        }
+        #timestamp {
+            text-align: center;
+            margin-top: 10px;
+        }
+        #radar-controls {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        #radar-controls button {
+            margin: 0 5px;
+            background-color: #3a3a3a;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        #radar-controls button:hover {
+            background-color: #4a4a4a;
+        }
+        @media (max-width: 600px) {
+            body {
+                padding: 5px;
+            }
+            h1 {
+                font-size: 1.2em;
+            }
+            .tab {
+                padding: 5px;
+                font-size: 0.9em;
+            }
+            table {
+                font-size: 0.8em;
+            }
+            th, td {
+                padding: 4px;
+            }
+            #weather-container {
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Pronóstico del tiempo y radar de lluvia para Monzón</h1>
+        <div class="tabs">
+            <div class="tab active" onclick="openTab(event, 'forecast')">Pronóstico</div>
+            <div class="tab" onclick="openTab(event, 'radar')">Radar de lluvia</div>
+        </div>
+        <div id="forecast" class="content active">
+            <div id="weather-container"></div>
+        </div>
+        <div id="radar" class="content">
+            <div id="map"></div>
+            <div id="timestamp"></div>
+            <div id="radar-controls">
+                <button onclick="playPauseRadar()">Reproducir/Pausar</button>
+                <button onclick="previousFrame()">Anterior</button>
+                <button onclick="nextFrame()">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // El resto del script permanece igual
+        // ...
+    </script>
+</body>
+</html>
