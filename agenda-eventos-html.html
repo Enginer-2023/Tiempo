@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda de Eventos</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #1a237e;
+            color: white;
+            padding: 1em;
+            text-align: center;
+        }
+        nav {
+            display: flex;
+            justify-content: center;
+            padding: 1em 0;
+            background-color: #283593;
+        }
+        nav span {
+            margin: 0 1em;
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+        nav span:hover {
+            color: #9fa8da;
+        }
+        main {
+            padding: 2em;
+            max-width: 1200px;
+            margin: auto;
+        }
+        form {
+            background-color: #1e1e1e;
+            padding: 2em;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 500px;
+            margin: auto;
+        }
+        label {
+            display: block;
+            margin-top: 1em;
+            color: #9fa8da;
+        }
+        input, textarea, button {
+            width: 100%;
+            padding: 0.8em;
+            margin-top: 0.5em;
+            border: none;
+            border-radius: 4px;
+            background-color: #2c2c2c;
+            color: #e0e0e0;
+        }
+        button {
+            background-color: #3f51b5;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #303f9f;
+        }
+        #event-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1.5em;
+            padding-top: 1.5em;
+        }
+        .event-item {
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            padding: 1.5em;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .event-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .event-item img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-bottom: 1em;
+        }
+        .hidden {
+            display: none;
+        }
+        .edit-button, .delete-button {
+            margin-top: 0.5em;
+            padding: 0.5em;
+            width: auto;
+        }
+        .delete-button {
+            background-color: #f44336;
+        }
+        .delete-button:hover {
+            background-color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Agenda de Eventos</h1>
+        <nav>
+            <span onclick="showSection('login')">Iniciar Sesión</span>
+            <span onclick="showSection('upload')">Cargar Evento</span>
+            <span onclick="showSection('events')">Ver Eventos</span>
+        </nav>
+    </header>
+    <main>
+        <section id="login" class="hidden">
+            <h2>Iniciar Sesión</h2>
+            <form id="login-form">
+                <label for="username">Usuario:</label>
+                <input type="text" id="username" name="username" required>
+                <label for="password">Contraseña:</label>
+                <input type="password" id="password" name="password" required>
+                <button type="submit">Iniciar Sesión</button>
+            </form>
+        </section>
+        <section id="upload" class="hidden">
+            <h2>Cargar Evento</h2>
+            <form id="upload-form">
+                <input type="hidden" id="event-id" name="event-id">
+                <label for="event-name">Nombre del Evento:</label>
+                <input type="text" id="event-name" name="event-name" required>
+                <label for="event-date">Fecha del Evento:</label>
+                <input type="date" id="event-date" name="event-date" required>
+                <label for="event-time">Hora del Evento:</label>
+                <input type="time" id="event-time" name="event-time" required>
+                <label for="event-location">Lugar del Evento:</label>
+                <input type="text" id="event-location" name="event-location" required>
+                <label for="event-type">Tipo de Evento:</label>
+                <input type="text" id="event-type" name="event-type" required>
+                <label for="event-image">Imagen del Evento:</label>
+                <input type="file" id="event-image" name="event-image" accept="image/*">
+                <button type="submit">Guardar Evento</button>
+            </form>
+        </section>
+        <section id="events">
+            <h2>Próximos Eventos</h2>
+            <div id="event-list">
+                <!-- Los eventos se cargarán aquí dinámicamente -->
+            </div>
+        </section>
+    </main>
+    <script>
+        let isLoggedIn = false;
+        let events = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const eventList = document.getElementById('event-list');
+            const loginForm = document.getElementById('login-form');
+            const uploadForm = document.getElementById('upload-form');
+
+            const validUser = {
+                username: 'user',
+                password: 'user1234'
+            };
+
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                if (username === validUser.username && password === validUser.password) {
+                    alert('Inicio de sesión exitoso.');
+                    isLoggedIn = true;
+                    showSection('upload');
+                } else {
+                    alert('Usuario o contraseña incorrectos.');
+                }
+            });
+
+            uploadForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                if (!isLoggedIn) {
+                    alert('Por favor, inicie sesión primero.');
+                    showSection('login');
+                    return;
+                }
+                const eventId = document.getElementById('event-id').value;
+                const eventName = document.getElementById('event-name').value;
+                const eventDate = document.getElementById('event-date').value;
+                const eventTime = document.getElementById('event-time').value;
+                const eventLocation = document.getElementById('event-location').value;
+                const eventType = document.getElementById('event-type').value;
+                const eventImage = document.getElementById('event-image').files[0];
+
+                const saveEvent = (imageDataUrl) => {
+                    const event = {
+                        id: eventId || Date.now().toString(),
+                        name: eventName,
+                        date: eventDate,
+                        time: eventTime,
+                        location: eventLocation,
+                        type: eventType,
+                        image: imageDataUrl || ''
+                    };
+
+                    if (eventId) {
+                        // Actualizar evento existente
+                        const index = events.findIndex(e => e.id === eventId);
+                        if (index !== -1) {
+                            events[index] = event;
+                        }
+                    } else {
+                        // Añadir nuevo evento
+                        events.push(event);
+                    }
+
+                    // Ordenar eventos por fecha y hora
+                    events.sort((a, b) => {
+                        const dateA = new Date(a.date + 'T' + a.time);
+                        const dateB = new Date(b.date + 'T' + b.time);
+                        return dateA - dateB;
+                    });
+
+                    renderEvents();
+                    resetForm();
+                    showSection('events');
+                };
+
+                if (eventImage) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => saveEvent(reader.result);
+                    reader.readAsDataURL(eventImage);
+                } else {
+                    saveEvent();
+                }
+            });
+
+            function renderEvents() {
+                eventList.innerHTML = '';
+                events.forEach(event => {
+                    const eventItem = document.createElement('div');
+                    eventItem.classList.add('event-item');
+                    eventItem.innerHTML = `
+                        ${event.image ? `<img src="${event.image}" alt="${event.name}">` : ''}
+                        <h3>${event.name}</h3>
+                        <p><strong>Fecha:</strong> ${event.date}</p>
+                        <p><strong>Hora:</strong> ${event.time}</p>
+                        <p><strong>Lugar:</strong> ${event.location}</p>
+                        <p><strong>Tipo:</strong> ${event.type}</p>
+                        <button class="edit-button" onclick="editEvent('${event.id}')">Editar</button>
+                        <button class="delete-button" onclick="deleteEvent('${event.id}')">Eliminar</button>
+                    `;
+                    eventList.appendChild(eventItem);
+                });
+            }
+
+            function resetForm() {
+                document.getElementById('event-id').value = '';
+                document.getElementById('upload-form').reset();
+            }
+
+            window.showSection = function(sectionId) {
+                document.querySelectorAll('main section').forEach(section => {
+                    section.classList.add('hidden');
+                });
+                document.getElementById(sectionId).classList.remove('hidden');
+            }
+
+            window.editEvent = function(eventId) {
+                if (!isLoggedIn) {
+                    alert('Por favor, inicie sesión primero.');
+                    showSection('login');
+                    return;
+                }
+                const event = events.find(e => e.id === eventId);
+                if (event) {
+                    document.getElementById('event-id').value = event.id;
+                    document.getElementById('event-name').value = event.name;
+                    document.getElementById('event-date').value = event.date;
+                    document.getElementById('event-time').value = event.time;
+                    document.getElementById('event-location').value = event.location;
+                    document.getElementById('event-type').value = event.type;
+                    showSection('upload');
+                }
+            }
+
+            window.deleteEvent = function(eventId) {
+                if (!isLoggedIn) {
+                    alert('Por favor, inicie sesión primero.');
+                    showSection('login');
+                    return;
+                }
+                if (confirm('¿Está seguro de que desea eliminar este evento?')) {
+                    events = events.filter(e => e.id !== eventId);
+                    renderEvents();
+                }
+            }
+
+            showSection('events');
+        });
+    </script>
+</body>
+</html>
