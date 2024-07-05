@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pronóstico del tiempo y radar de lluvia</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 10px;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+        h1 {
+            text-align: center;
+            color: #ffffff;
+            font-size: 1.8em;
+            margin-bottom: 15px;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        .tab {
+            padding: 12px;
+            cursor: pointer;
+            background-color: #2c2c2c;
+            border: 1px solid #444;
+            border-bottom: none;
+            color: #e0e0e0;
+            flex-grow: 1;
+            text-align: center;
+            font-size: 1.1em;
+        }
+        .tab.active {
+            background-color: #3a3a3a;
+            border-bottom: 1px solid #3a3a3a;
+        }
+        .content {
+            display: none;
+            border: 1px solid #444;
+            padding: 15px;
+            background-color: #2c2c2c;
+        }
+        .content.active {
+            display: block;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 1em;
+        }
+        th, td {
+            border: 1px solid #444;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #3a3a3a;
+        }
+        tr:nth-child(even) {
+            background-color: #252525;
+        }
+        #map {
+            height: 300px;
+            width: 100%;
+        }
+        #timestamp {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 1.1em;
+        }
+        #radar-controls {
+            display: flex;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        #radar-controls button {
+            margin: 0 5px;
+            background-color: #3a3a3a;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        #radar-controls button:hover {
+            background-color: #4a4a4a;
+        }
+        .weather-icon {
+            font-size: 1.5em;
+        }
+        #city-selector {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            background-color: #2c2c2c;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            font-size: 1em;
+        }
+        @media (max-width: 600px) {
+            body {
+                padding: 5px;
+                font-size: 14px;
+            }
+            h1 {
+                font-size: 1.5em;
+            }
+            .tab {
+                padding: 8px;
+                font-size: 1em;
+            }
+            table {
+                font-size: 0.9em;
+            }
+            th, td {
+                padding: 6px;
+            }
+            #weather-container {
+                overflow-x: auto;
+            }
+            .day-column {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Pronóstico del tiempo y radar de lluvia</h1>
+        <select id="city-selector" onchange="changeCity()">
+            <option value="41.91,0.19,Monzón">Monzón</option>
+            <option value="41.62,0.62,Lérida">Lérida</option>
+            <option value="41.58,1.62,Igualada">Igualada</option>
+            <option value="41.39,2.17,Barcelona">Barcelona (ciudad)</option>
+            <option value="41.54,2.44,Mataró">Mataró</option>
+            <option value="42.43,1.93,Puigcerdà">Puigcerdà</option>
+        </select>
+        <div class="tabs">
+            <div class="tab active" onclick="openTab(event, 'forecast')">Pronóstico</div>
+            <div class="tab" onclick="openTab(event, 'radar')">Radar de lluvia</div>
+        </div>
+        <div id="forecast" class="content active">
+            <div id="weather-container">Cargando pronóstico...</div>
+        </div>
+        <div id="radar" class="content">
+            <div id="map"></div>
+            <div id="timestamp"></div>
+            <div id="radar-controls">
+                <button onclick="playPauseRadar()">Reproducir/Pausar</button>
+                <button onclick="previousFrame()">Anterior</button>
+                <button onclick="nextFrame()">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let LATITUDE = 41.91;
+        let LONGITUDE = 0.19;
+        let CITY_NAME = "Monzón";
+        const API_KEY = 'c23e83e74de05f4d9687c3015c87469b';
+        let map, radarLayer;
+        let radarFrames = [];
+        let currentFrameIndex = 0;
+        let isPlaying = false;
+        let playInterval;
+
+        function changeCity() {
+            const selectedCity = document.getElementById('city-selector').value.split(',');
+            LATITUDE = parseFloat(selectedCity[0]);
+            LONGITUDE = parseFloat(selectedCity[1]);
+            CITY_NAME = selectedCity[2];
+            getWeatherForecast();
+            if (window.mapInitialized) {
+                map.setView([LATITUDE, LONGITUDE], 8);
+            }
+        }
+
+        function openTab(evt, tabName) {
+            const contents = document.getElementsByClassName("content");
+            for (let i = 0; i < contents.length; i++) {
+                contents[i].classList.remove("active");
+            }
+            const tabs = document.getElementsByClassName("tab");
+            for (let i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove("active");
+            }
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.classList.add("active");
+            if (tabName === 'radar' && !window.mapInitialized) {
+                initMap();
+            }
+        }
+
+        async function getWeatherForecast() {
+            try {
+                const response = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${LATITUDE}&lon=${LONGITUDE}&units=metric&appid=${API_KEY}`);
+                const data = await response.json();
+                
+                const weatherContainer = document.getElementById('weather-container');
+                let tableHTML = `
+                    <h2>Pronóstico para ${CITY_NAME}</h2>
+                    <table>
+                        <tr>
+                            <th>Fecha</th>
+                            <th class="day-column">Día</th>
+                            <th>Tiempo</th>
+                            <th>Descripción</th>
+                            <th>Temp. Mín.</th>
+                            <th>Temp. Máx.</th>
+                            <th>Prob. Lluvia</th>
+                        </tr>
+                `;
+
+                const dailyData = {};
+                data.list.forEach(item => {
+                    const date = new Date(item.dt * 1000);
+                    const dateString = date.toISOString().split('T')[0];
+                    
+                    if (!dailyData[dateString]) {
+                        dailyData[dateString] = {
+                            date: date,
+                            icon: item.weather[0].icon,
+                            description: item.weather[0].description,
+                            temp_min: item.main.temp_min,
+                            temp_max: item.main.temp_max,
+                            pop: item.pop
+                        };
+                    } else {
+                        dailyData[dateString].temp_min = Math.min(dailyData[dateString].temp_min, item.main.temp_min);
+                        dailyData[dateString].temp_max = Math.max(dailyData[dateString].temp_max, item.main.temp_max);
+                        dailyData[dateString].pop = Math.max(dailyData[dateString].pop, item.pop);
+                    }
+                });
+
+                Object.values(dailyData).slice(0, 7).forEach(day => {
+                    tableHTML += `
+                        <tr>
+                            <td>${day.date.toLocaleDateString('es-ES')}</td>
+                            <td class="day-column">${day.date.toLocaleDateString('es-ES', { weekday: 'long' })}</td>
+                            <td><img src="http://openweathermap.org/img/wn/${day.icon}.png" alt="${day.description}"></td>
+                            <td>${day.description}</td>
+                            <td>${Math.round(day.temp_min)}°C</td>
+                            <td>${Math.round(day.temp_max)}°C</td>
+                            <td>${Math.round(day.pop * 100)}%</td>
+                        </tr>
+                    `;
+                });
+
+                tableHTML += '</table>';
+                weatherContainer.innerHTML = tableHTML;
+            } catch (error) {
+                console.error('Error al obtener el pronóstico:', error);
+                document.getElementById('weather-container').innerHTML = '<p>Error al cargar el pronóstico. Por favor, intenta más tarde.</p>';
+            }
+        }
+
+        async function initMap() {
+            map = L.map('map').setView([LATITUDE, LONGITUDE], 8);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            await fetchRadarFrames();
+            showFrame(currentFrameIndex);
+
+            window.mapInitialized = true;
+        }
+
+        async function fetchRadarFrames() {
+            try {
+                const response = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${LATITUDE}&lon=${LONGITUDE}&appid=${API_KEY}`);
+                const data = await response.json();
+                radarFrames = data.list.slice(0, 24);
+            } catch (error) {
+                console.error('Error fetching radar frames:', error);
+            }
+        }
+
+        function showFrame(index) {
+            if (radarLayer) {
+                map.removeLayer(radarLayer);
+            }
+
+            const frame = radarFrames[index];
+            radarLayer = L.tileLayer(`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${API_KEY}`, {
+                opacity: 0.5,
+            }).addTo(map);
+
+            updateTimestamp(frame.dt);
+        }
+
+        function updateTimestamp(timestamp) {
+            const date = new Date(timestamp * 1000);
+            document.getElementById('timestamp').textContent = `Imagen del radar: ${date.toLocaleString('es-ES')}`;
+        }
+
+        function playPauseRadar() {
+            if (isPlaying) {
+                clearInterval(playInterval);
+                isPlaying = false;
+            } else {
+                playInterval = setInterval(() => {
+                    nextFrame();
+                    if (currentFrameIndex === radarFrames.length - 1) {
+                        clearInterval(playInterval);
+                        isPlaying = false;
+                    }
+                }, 500);
+                isPlaying = true;
+            }
+        }
+
+        function previousFrame() {
+            currentFrameIndex = (currentFrameIndex - 1 + radarFrames.length) % radarFrames.length;
+            showFrame(currentFrameIndex);
+        }
+
+        function nextFrame() {
+            currentFrameIndex = (currentFrameIndex + 1) % radarFrames.length;
+            showFrame(currentFrameIndex);
+        }
+
+        window.addEventListener('load', getWeatherForecast);
+    </script>
+</body>
+</html>
